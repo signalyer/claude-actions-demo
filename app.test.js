@@ -1,5 +1,5 @@
 const request = require('supertest');
-const { app, formatUser } = require('./app');
+const { app, formatUser, parsePositiveIntParam } = require('./app');
 
 describe('routes', () => {
   test('GET /health returns ok', async () => {
@@ -13,6 +13,42 @@ describe('routes', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  test('GET /items?limit=1 returns only the first item', async () => {
+    const res = await request(app).get('/items?limit=1');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([{ id: 1, name: 'Widget' }]);
+  });
+
+  test('GET /items rejects a non-numeric limit', async () => {
+    const res = await request(app).get('/items?limit=abc');
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'limit must be a positive integer' });
+  });
+
+  test('GET /items rejects a zero limit', async () => {
+    const res = await request(app).get('/items?limit=0');
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'limit must be a positive integer' });
+  });
+
+  test('GET /items rejects a negative limit', async () => {
+    const res = await request(app).get('/items?limit=-1');
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'limit must be a positive integer' });
+  });
+
+  test('GET /items rejects a fractional limit', async () => {
+    const res = await request(app).get('/items?limit=1.5');
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'limit must be a positive integer' });
+  });
+
+  test('GET /items rejects a repeated limit (parsed as an array)', async () => {
+    const res = await request(app).get('/items?limit=1&limit=2');
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'limit must be a positive integer' });
   });
 
   test('POST /signup creates a user', async () => {
@@ -62,6 +98,27 @@ describe('routes', () => {
       .send({ name: '   ', email: 'ada@example.com' });
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: 'name is required' });
+  });
+});
+
+describe('parsePositiveIntParam', () => {
+  test('accepts an absent param (value is undefined)', () => {
+    expect(parsePositiveIntParam(undefined)).toEqual({ ok: true, value: undefined });
+  });
+
+  test('accepts a positive integer string', () => {
+    expect(parsePositiveIntParam('5')).toEqual({ ok: true, value: 5 });
+  });
+
+  test('rejects non-numeric, zero, negative, and fractional values', () => {
+    expect(parsePositiveIntParam('abc').ok).toBe(false);
+    expect(parsePositiveIntParam('0').ok).toBe(false);
+    expect(parsePositiveIntParam('-1').ok).toBe(false);
+    expect(parsePositiveIntParam('1.5').ok).toBe(false);
+  });
+
+  test('rejects a non-string (e.g. an array from a repeated param)', () => {
+    expect(parsePositiveIntParam(['1', '2']).ok).toBe(false);
   });
 });
 
