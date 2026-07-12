@@ -18,10 +18,34 @@ app.get('/items', (req, res) => {
   res.json(items);
 });
 
-// Signup — NOTE: intentionally missing input validation on email/name
+// Basic email format validation (RFC-5322-lite: local@domain.tld)
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isValidEmail(email) {
+  return isNonEmptyString(email) && EMAIL_REGEX.test(email);
+}
+
+// Signup — validates that name and email are present and well-formed
 app.post('/signup', (req, res) => {
-  const { name, email } = req.body;
-  const user = { id: items.length + 1, name, email };
+  const { name, email } = req.body || {};
+
+  if (!isNonEmptyString(name)) {
+    return res.status(400).json({ error: 'name is required' });
+  }
+
+  if (!isNonEmptyString(email)) {
+    return res.status(400).json({ error: 'email is required' });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ error: 'email format is invalid' });
+  }
+
+  const user = { id: items.length + 1, name: name.trim(), email: email.trim() };
   res.status(201).json(user);
 });
 
