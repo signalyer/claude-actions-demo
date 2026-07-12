@@ -13,9 +13,33 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// List items
+// Validates an optional positive-integer query param.
+// Returns { ok: true, value } when absent (value undefined) or a valid
+// positive integer, and { ok: false } when present but malformed.
+function parsePositiveIntParam(raw) {
+  if (raw === undefined) {
+    return { ok: true, value: undefined };
+  }
+  // Only accept a plain string of digits representing a value >= 1.
+  if (typeof raw !== 'string' || !/^\d+$/.test(raw)) {
+    return { ok: false };
+  }
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1) {
+    return { ok: false };
+  }
+  return { ok: true, value };
+}
+
+// List items — supports an optional `?limit=` query param (positive integer)
 app.get('/items', (req, res) => {
-  res.json(items);
+  const { ok, value: limit } = parsePositiveIntParam(req.query.limit);
+
+  if (!ok) {
+    return res.status(400).json({ error: 'limit must be a positive integer' });
+  }
+
+  res.json(limit === undefined ? items : items.slice(0, limit));
 });
 
 // Basic email format validation (RFC-5322-lite: local@domain.tld)
@@ -54,4 +78,4 @@ function formatUser(user) {
   return `${user.name} <${user.email}>`;
 }
 
-module.exports = { app, formatUser };
+module.exports = { app, formatUser, parsePositiveIntParam };

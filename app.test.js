@@ -1,5 +1,5 @@
 const request = require('supertest');
-const { app, formatUser } = require('./app');
+const { app, formatUser, parsePositiveIntParam } = require('./app');
 
 describe('routes', () => {
   test('GET /health returns ok', async () => {
@@ -13,6 +13,37 @@ describe('routes', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  test('GET /items?limit applies a valid limit', async () => {
+    const res = await request(app).get('/items?limit=1');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBe(1);
+  });
+
+  test('GET /items rejects a non-numeric limit', async () => {
+    const res = await request(app).get('/items?limit=abc');
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'limit must be a positive integer' });
+  });
+
+  test('GET /items rejects a zero limit', async () => {
+    const res = await request(app).get('/items?limit=0');
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'limit must be a positive integer' });
+  });
+
+  test('GET /items rejects a negative limit', async () => {
+    const res = await request(app).get('/items?limit=-3');
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'limit must be a positive integer' });
+  });
+
+  test('GET /items rejects a fractional limit', async () => {
+    const res = await request(app).get('/items?limit=1.5');
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'limit must be a positive integer' });
   });
 
   test('POST /signup creates a user', async () => {
@@ -70,5 +101,22 @@ describe('formatUser', () => {
     expect(formatUser({ name: 'Ada', email: 'ada@example.com' })).toBe(
       'Ada <ada@example.com>'
     );
+  });
+});
+
+describe('parsePositiveIntParam', () => {
+  test('treats an absent param as valid with undefined value', () => {
+    expect(parsePositiveIntParam(undefined)).toEqual({ ok: true, value: undefined });
+  });
+
+  test('accepts a positive integer string', () => {
+    expect(parsePositiveIntParam('5')).toEqual({ ok: true, value: 5 });
+  });
+
+  test('rejects non-numeric, zero, negative, and fractional values', () => {
+    expect(parsePositiveIntParam('abc').ok).toBe(false);
+    expect(parsePositiveIntParam('0').ok).toBe(false);
+    expect(parsePositiveIntParam('-1').ok).toBe(false);
+    expect(parsePositiveIntParam('1.5').ok).toBe(false);
   });
 });
