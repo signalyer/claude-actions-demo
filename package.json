@@ -1,0 +1,17 @@
+{
+  "name": "claude-actions-demo",
+  "version": "1.0.0",
+  "description": "Minimal Express demo app for testing Claude Code GitHub Actions",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "express": "4.17.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
+  }
+}
